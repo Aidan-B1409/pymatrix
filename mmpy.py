@@ -1,5 +1,5 @@
 import argparse
-import threading
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from time import perf_counter
 
@@ -34,12 +34,12 @@ def main():
     # Spin up worker threads 
     run_tic = perf_counter()
 
-    lock = threading.Lock()
-    wthreads = [threading.Thread(target = thread_func, args = (left_matrix, right_matrix, result_matrix, lock, tid))
-        for tid in range(args.threads)]
-    print(len(wthreads))
-    [thread.start() for thread in wthreads]
-    [thread.join() for thread in wthreads]
+    with ThreadPoolExecutor(max_workers = args.threads) as executor:
+        futures = []
+        for row in range(result_matrix.shape[0]):
+            futures.append(executor.submit(thread_func, left_matrix, right_matrix, result_matrix, row))
+        [future.result() for future in futures]
+
 
     run_toc = perf_counter()
     timings['mult time'] = run_toc - run_tic
@@ -66,25 +66,9 @@ def main():
 
 
 
-def thread_func(l_matrix, r_matrix, result, lock, tid):
-    t_row = get_next_row(lock)
-    print(f'thread {tid} processing row {t_row}')
-    while t_row < result.shape[1]:
-        for i in range(result.shape[0]):
-            result[t_row][i] = l_matrix[t_row][i] * r_matrix[t_row][i]
-        t_row = get_next_row(lock)
-        print(f'thread {tid} processing row {t_row}')
-
-
-def get_next_row(lock) -> int:
-    global row
-    t_row = 0;
-    lock.acquire() 
-    t_row = row
-    row += 1
-    lock.release()
-    return t_row
-
+def thread_func(l_matrix, r_matrix, result, row):
+        for i in range(row):
+            result[row][i] = l_matrix[row][i] * r_matrix[row][i]
 
 if __name__ == '__main__':
     main()
