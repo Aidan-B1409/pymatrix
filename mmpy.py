@@ -1,5 +1,5 @@
 import argparse
-import threading
+import multiprocessing as mp
 import numpy as np
 from time import perf_counter
 
@@ -30,12 +30,13 @@ def main():
     
     init_toc = perf_counter()
     timings['init time'] = init_toc - init_tic
+    print("init done")
     
     # Spin up worker threads 
     run_tic = perf_counter()
 
-    lock = threading.Lock()
-    wthreads = [threading.Thread(target = thread_func, args = (left_matrix, right_matrix, result_matrix, lock, tid))
+    lock = mp.Lock()
+    wthreads = [mp.Process(target = thread_func, args = (left_matrix, right_matrix, result_matrix, lock, tid))
         for tid in range(args.threads)]
     print(len(wthreads))
     [thread.start() for thread in wthreads]
@@ -68,12 +69,10 @@ def main():
 
 def thread_func(l_matrix, r_matrix, result, lock, tid):
     t_row = get_next_row(lock)
-    print(f'thread {tid} processing row {t_row}')
     while t_row < result.shape[1]:
         for i in range(result.shape[0]):
             result[t_row][i] = l_matrix[t_row][i] * r_matrix[t_row][i]
         t_row = get_next_row(lock)
-        print(f'thread {tid} processing row {t_row}')
 
 
 def get_next_row(lock) -> int:
