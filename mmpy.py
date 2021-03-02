@@ -1,5 +1,5 @@
 import argparse
-import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from time import perf_counter
 
@@ -35,12 +35,22 @@ def main():
     # Spin up worker threads 
     run_tic = perf_counter()
 
-    lock = mp.Lock()
-    wthreads = [mp.Process(target = thread_func, args = (left_matrix, right_matrix, result_matrix, lock, tid))
-        for tid in range(args.threads)]
-    print(len(wthreads))
-    [thread.start() for thread in wthreads]
-    [thread.join() for thread in wthreads]
+    # lock = mp.Lock()
+    # wthreads = [mp.Process(target = thread_func, args = (left_matrix, right_matrix, result_matrix, lock, tid))
+    #     for tid in range(args.threads)]
+    # print(len(wthreads))
+    # [thread.start() for thread in wthreads]
+    # [thread.join() for thread in wthreads]
+
+    with ProcessPoolExecutor(max_workers=args.threads) as pool:
+        futures = []
+        for i in range(result_matrix.shape[0]):
+            futures.append(pool.submit(mult_row, left_matrix[i], right_matrix[i], result_matrix.shape[0]))
+        for i in range(result_matrix.shape[0]):
+            result_matrix[i] = futures[i].result()
+
+        # results = pool.map(mult_row, left_matrix, right_matrix, range(args.msize))
+
 
     run_toc = perf_counter()
     timings['mult time'] = run_toc - run_tic
@@ -67,22 +77,18 @@ def main():
 
 
 
-def thread_func(l_matrix, r_matrix, result, lock, tid):
-    t_row = get_next_row(lock)
-    while t_row < result.shape[1]:
-        for i in range(result.shape[0]):
-            result[t_row][i] = l_matrix[t_row][i] * r_matrix[t_row][i]
-        t_row = get_next_row(lock)
+def mult_row(left_row, right_row, length):
+    return [left_row[i] * right_row[i] for i in range(length)]
 
 
-def get_next_row(lock) -> int:
-    global row
-    t_row = 0;
-    lock.acquire() 
-    t_row = row
-    row += 1
-    lock.release()
-    return t_row
+# def get_next_row(lock) -> int:
+#     global row
+#     t_row = 0;
+#     lock.acquire() 
+#     t_row = row
+#     row += 1
+#     lock.release()
+#     return t_row
 
 
 if __name__ == '__main__':
