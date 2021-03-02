@@ -1,5 +1,6 @@
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 import numpy as np
 from time import perf_counter
 
@@ -34,12 +35,13 @@ def main():
     # Spin up worker threads 
     run_tic = perf_counter()
 
+    print(args.threads)
     with ThreadPoolExecutor(max_workers = args.threads) as executor:
         futures = []
         for row in range(result_matrix.shape[0]):
             futures.append(executor.submit(thread_func, left_matrix, right_matrix, result_matrix, row))
-        [future.result() for future in futures]
-
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
     run_toc = perf_counter()
     timings['mult time'] = run_toc - run_tic
