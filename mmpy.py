@@ -26,31 +26,19 @@ def main():
 
     left_matrix = np.array([[i + j * 2.0 for j in range(args.msize)] for i in range(args.msize)], dtype=np.float64)
     right_matrix = np.array([[i + j * 3.0 for j in range(args.msize)] for i in range(args.msize)], dtype=np.float64)
-    result_matrix = np.zeros((args.msize, args.msize), dtype=np.float64)
+    result_matrix = 0
     
     init_toc = perf_counter()
     timings['init time'] = init_toc - init_tic
     print("init done")
     
-    # Spin up worker threads 
     run_tic = perf_counter()
 
-    # lock = mp.Lock()
-    # wthreads = [mp.Process(target = thread_func, args = (left_matrix, right_matrix, result_matrix, lock, tid))
-    #     for tid in range(args.threads)]
-    # print(len(wthreads))
-    # [thread.start() for thread in wthreads]
-    # [thread.join() for thread in wthreads]
-
     with ProcessPoolExecutor(max_workers=args.threads) as pool:
-        futures = []
-        for i in range(result_matrix.shape[0]):
-            futures.append(pool.submit(mult_row, left_matrix[i], right_matrix[i], result_matrix.shape[0]))
-        for i in range(result_matrix.shape[0]):
-            result_matrix[i] = futures[i].result()
-
-        # results = pool.map(mult_row, left_matrix, right_matrix, range(args.msize))
-
+        rows = pool.map(mult_row, left_matrix, right_matrix)
+        result_matrix = np.ndarray((args.msize, args.msize), dtype=np.float64)
+        for i, row in enumerate(rows):
+            result_matrix[i] = row
 
     run_toc = perf_counter()
     timings['mult time'] = run_toc - run_tic
@@ -76,20 +64,8 @@ def main():
     print(result_matrix.shape[0])
 
 
-
-def mult_row(left_row, right_row, length):
-    return [left_row[i] * right_row[i] for i in range(length)]
-
-
-# def get_next_row(lock) -> int:
-#     global row
-#     t_row = 0;
-#     lock.acquire() 
-#     t_row = row
-#     row += 1
-#     lock.release()
-#     return t_row
-
+def mult_row(left_row, right_row):
+    return np.array([left_row[i] * right_row[i] for i in range(left_row.shape[0])], dtype=np.float64)
 
 if __name__ == '__main__':
     main()
